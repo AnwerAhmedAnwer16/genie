@@ -233,7 +233,10 @@ courses_search_view = {
                     }
                 }
             ],
-            'gr'
+            'group_by' : [
+                {'name' : 'package', 'string' : 'Group By Package'},
+                {'name' : 'level', 'string' : 'Group By Level'}
+            ]
         }
     }
 }
