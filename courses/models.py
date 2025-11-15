@@ -3,7 +3,7 @@ from django.db import models
 # Create your models here.
 # -*- coding: utf-8 -*-
 # Models for courses module
-from modules.base.models.base import BaseModel 
+from modules.base.models.base import BaseModel  # type: ignore
 
 class Category(BaseModel):
     name = models.CharField(max_length=100)
