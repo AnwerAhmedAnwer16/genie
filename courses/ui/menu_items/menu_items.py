@@ -3,7 +3,7 @@
 
 {
     "courses_main_menu": {
-        "name": "courses",
+        "name": "Courses",
         "icon": "BookOpen",
         "module": "courses",
         "sequence": 102,
