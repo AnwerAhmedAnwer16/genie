@@ -221,7 +221,19 @@ courses_search_view = {
                     "widget": "boolean",
                     "string": _("Published"),
                 }
-            ]
+            ],
+            'filters' : [
+                {
+                    'name' : 'is_published',
+                    'string' : _('Is Published'),
+                    'filter' : {
+                        'field' : 'is_published',
+                        'operator' : 'eq',
+                        'values' : True
+                    }
+                }
+            ],
+            'gr'
         }
     }
 }

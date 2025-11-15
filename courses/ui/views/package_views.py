@@ -173,6 +173,21 @@ package_search_view = {
                     "widget": "boolean",
                     "string": _("Active"),
                 }
+            ],
+            'filters' : [
+                {
+                'name' : 'active_packages',
+                'string' : _('Active Packages'),
+                'filter' :  {
+                    'field' : 'is_active',
+                    'operator' : 'eq',
+                    'value' : True
+                }
+                }
+
+            ],
+            'group_by' : [
+                { 'name' : 'is_active' , 'string' : 'Active Packages'}
             ]
         }
     }
