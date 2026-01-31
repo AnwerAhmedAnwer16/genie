@@ -42,7 +42,7 @@ category_form_view = {
                             "title": "Category Details",
                             "fullWidth": False,
                             "fields": [
-                                {"name": "name", "widget": "text"}
+                                {"name": "name", "widget": "text", "required" : True}
                             ]
                         },
                         {

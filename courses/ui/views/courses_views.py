@@ -240,3 +240,83 @@ courses_search_view = {
         }
     }
 }
+
+
+
+# class Product(BaseModel):
+#     """Product Variant"""
+    
+#     # Reference to template
+#     product_tmpl = models.ForeignKey(
+#         ProductTemplate, 
+#         on_delete=models.CASCADE,
+#         related_name='product_variant_ids'
+#     )
+    
+#     # Variant specific fields
+#     default_code = models.CharField(max_length=50, blank=True, help_text="Internal Reference")
+#     barcode = models.CharField(max_length=50, blank=True, unique=True)
+    
+#     # Pricing (can override template)
+#     lst_price = models.DecimalField(
+#         max_digits=16, 
+#         decimal_places=2, 
+#         null=True,
+#         blank=True,
+#         help_text="Sale price (overrides template if set)"
+#     )
+#     standard_price = models.DecimalField(
+#         max_digits=16, 
+#         decimal_places=2,
+#         null=True,
+#         blank=True,
+#         help_text="Cost price (overrides template if set)"
+#     )
+    
+#     # Volume and weight (can override template)
+#     weight = models.DecimalField(
+#         max_digits=8, 
+#         decimal_places=3, 
+#         null=True,
+#         blank=True
+#     )
+#     volume = models.DecimalField(
+#         max_digits=8, 
+#         decimal_places=3, 
+#         null=True,
+#         blank=True
+#     )
+    
+#     # Attributes combination
+#     product_template_attribute_value_ids = models.ManyToManyField(
+#         ProductAttributeValue,
+#         blank=True,
+#         help_text="Attribute values that define this variant"
+#     )
+    
+    
+#     class Meta:
+#         verbose_name = _('Product')
+#         verbose_name_plural = _('Products')
+    
+#     def __str__(self):
+#         if self.product_template_attribute_value_ids.exists():
+#             variant_name = ", ".join([
+#                 str(attr_val) for attr_val in 
+#                 self.product_template_attribute_value_ids.all()
+#             ])
+#             return f"{self.product_tmpl.name} ({variant_name})"
+#         return self.product_tmpl.name
+    
+#     @property
+#     def name(self):
+#         """Get product name"""
+#         return str(self)
+    
+#     @property
+#     def display_name(self):
+#         """Display name with internal reference if available"""
+#         name = self.name
+#         if self.default_code:
+#             name = f"[{self.default_code}] {name}"
+#         return name

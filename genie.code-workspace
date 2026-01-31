@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "."
+		},
+		{
+			"path": "../../PycharmProjects/odootest/odoo17"
 		}
 	],
 	// "settings": {}
