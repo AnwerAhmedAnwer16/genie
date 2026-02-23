@@ -15,12 +15,121 @@ from django.utils.translation import gettext as _
 
 class TourPackageYallaExtension(ModelExtension):
     """
-    Extend TourPackage with separate attachment fields for Arabic and English content.
-    Replaces the generic attachments field with 6 specific fields.
+    Extend TourPackage with Yalla Thailand trip fields and attachment fields.
+    Maps CSV columns that don't exist on TourPackage:
+    - Category.01/02/03, Min Selling, Net PRC, Supplier, Duration type
+    - Tags: Kids friendly, Action Adrenaline, Family Friendly, Romantic/Honeymoon, Smoker Friendly
+    - Media: WhatsApp Catalog Link, Video, Album
+    Already mapped to TourPackage: Trip Name→name, Short Description→description, Selling PRC→base_price
     """
     _inherit = 'tourism.tourpackage'
     _depends = ['tourism']
 
+    # --- CSV trip categories ---
+    category_01 = models.CharField(
+        _("Category 1"),
+        max_length=100,
+        blank=True,
+        help_text=_("Primary category (e.g., Phi Phi, James Bond, Krabi)")
+    )
+    category_02 = models.CharField(
+        _("Category 2"),
+        max_length=100,
+        blank=True,
+        help_text=_("Secondary category (e.g., Economy Trips, Luxury Trips)")
+    )
+    category_03 = models.CharField(
+        _("Category 3"),
+        max_length=100,
+        blank=True,
+        help_text=_("Tertiary category (optional)")
+    )
+
+    # --- CSV pricing ---
+    min_selling_price = models.DecimalField(
+        _("Min Selling Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Minimum selling price (THB)")
+    )
+    net_price = models.DecimalField(
+        _("Net Price"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("Net/cost price from supplier (THB)")
+    )
+
+    # --- CSV supplier ---
+    supplier = models.ForeignKey(
+        'base.Partner',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='yalla_supplied_packages',
+        verbose_name=_("Supplier"),
+        help_text=_("Trip supplier/operator")
+    )
+
+    # --- CSV duration type ---
+    duration_type = models.CharField(
+        _("Duration Type"),
+        max_length=50,
+        blank=True,
+        help_text=_("Duration type (e.g., Full Day, Half Day, Evening)")
+    )
+
+    # --- CSV tags ---
+    kids_friendly = models.BooleanField(
+        _("Kids Friendly"),
+        default=False,
+        help_text=_("Suitable for children")
+    )
+    action_adrenaline = models.BooleanField(
+        _("Action / Adrenaline"),
+        default=False,
+        help_text=_("Adventure/adrenaline activity")
+    )
+    family_friendly = models.BooleanField(
+        _("Family Friendly"),
+        default=False,
+        help_text=_("Suitable for families")
+    )
+    romantic_honeymoon = models.BooleanField(
+        _("Romantic / Honeymoon"),
+        default=False,
+        help_text=_("Suitable for couples/honeymoon")
+    )
+    smoker_friendly = models.BooleanField(
+        _("Smoker Friendly"),
+        default=False,
+        help_text=_("Smoking allowed")
+    )
+
+    # --- CSV media links ---
+    whatsapp_catalog_link = models.URLField(
+        _("WhatsApp Catalog Link"),
+        max_length=500,
+        blank=True,
+        help_text=_("WhatsApp product catalog link")
+    )
+    video_link = models.URLField(
+        _("Video Link"),
+        max_length=500,
+        blank=True,
+        help_text=_("Video URL for this trip")
+    )
+    album = models.CharField(
+        _("Album"),
+        max_length=255,
+        blank=True,
+        help_text=_("Album reference name")
+    )
+
+    # --- Attachment fields (AR/EN) ---
     audio_ar = AttachmentManyToManyField(
         upload_to='tourism/packages/audio_ar',
         allowed_types=['audio'],

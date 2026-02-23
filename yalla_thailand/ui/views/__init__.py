@@ -3,6 +3,8 @@
 
 from .package_patches import (
     tourism_package_form_yalla_patch,
+    tourism_package_list_yalla_patch,
+    tourism_package_search_yalla_patch,
 )
 
 from .account_move_patches import (
@@ -26,6 +28,8 @@ from .purchase_order_patches import (
 __all__ = [
     # Tourism package patches
     'tourism_package_form_yalla_patch',
+    'tourism_package_list_yalla_patch',
+    'tourism_package_search_yalla_patch',
 
     # Account move patches
     'invoice_form_view_yalla_patch',
