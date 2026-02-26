@@ -3,13 +3,15 @@
 Load Yalla Thailand full demo data.
 
 Creates:
-- 4 Thai Destinations (Bangkok, Krabi, Phi Phi, Phuket)
-- 100 Hotels (25 per destination) from CSV files
+- Phuket destination with 25 hotels (from 363 hardcoded Phuket hotels)
 - Thai airlines, tour sites, transport suppliers, room types
-- Trip packages from CSV (Trips Sheet - Trips.csv) with all fields
-- 20 Tour Bookings with flights, hotels, transports, programs, insurance, documents
+- 80 trip suppliers (from Master sheet)
+- 70 tour packages (from Trips sheet) with all extension fields
+- 20 Tour Bookings with flights, hotels, transports, programs, insurance
 - Sales Orders linked to confirmed/booked bookings
-- Purchase Orders linked to bookings (for suppliers)
+- Purchase Orders linked to bookings
+
+All data is hardcoded - no external CSV files needed.
 
 Usage:
     python manage.py load_yalla_demo
@@ -17,15 +19,12 @@ Usage:
     python manage.py load_yalla_demo --clear
 """
 
-import csv
 import random
 import string
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 from math import ceil
-from pathlib import Path
 
-from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -40,22 +39,16 @@ from modules.tourism.models import (
     TransportBooking, TourProgram, PassportVisa, TourInsurance,
 )
 
+from ._yalla_demo_data import TRIPS_DATA, SUPPLIER_TAGS, ALL_SUPPLIERS, PHUKET_HOTELS
+
 HOTELS_PER_DEST = 25
 
-CSV_DESTINATION_MAP = {
-    'All Hotels - Bangkok Hotels.csv': {
-        'name': 'Bangkok', 'code': 'BKK', 'type': 'airport',
-    },
-    'All Hotels - Krabi Hotels.csv': {
-        'name': 'Krabi', 'code': 'KBV', 'type': 'airport',
-    },
-    'All Hotels - Phi Phi Hotels.csv': {
-        'name': 'Phi Phi Islands', 'code': 'PHI', 'type': 'city',
-    },
-    'All Hotels - Phuket Hotels.csv': {
-        'name': 'Phuket', 'code': 'HKT', 'type': 'airport',
-    },
-}
+DESTINATIONS = [
+    {'name': 'Bangkok', 'code': 'BKK', 'type': 'airport'},
+    {'name': 'Krabi', 'code': 'KBV', 'type': 'airport'},
+    {'name': 'Phi Phi Islands', 'code': 'PHI', 'type': 'city'},
+    {'name': 'Phuket', 'code': 'HKT', 'type': 'airport'},
+]
 
 THAI_AIRLINES = [
     {'name': 'Thai Airways', 'code': 'TG'},
@@ -149,14 +142,25 @@ CATEGORY_DEST_MAP = {
     'Krabi': 'KBV',
     'Similan': 'HKT',
     'Adventures': 'HKT',
-    'Night Shows': 'HKT',
+    'Night Show': 'HKT',
     'Raya & Coral': 'HKT',
     'Private Boats': 'HKT',
 }
 
+# Map category_01 to PackageType name
+CATEGORY_PACKAGE_TYPE_MAP = {
+    'Phi Phi': 'Island Hopping',
+    'James Bond': 'Island Hopping',
+    'Krabi': 'Adventure & Diving',
+    'Similan': 'Island Hopping',
+    'Adventures': 'Adventure & Diving',
+    'Night Show': 'City & Culture',
+    'Raya & Coral': 'Beach & Relaxation',
+    'Private Boats': 'Luxury & Wellness',
+}
+
 
 def _safe_decimal(val, default=Decimal('0')):
-    """Parse a string to Decimal, returning default on failure."""
     if not val or not str(val).strip():
         return default
     try:
@@ -167,7 +171,7 @@ def _safe_decimal(val, default=Decimal('0')):
 
 
 class Command(BaseCommand):
-    help = 'Load Yalla Thailand full demo data (hotels, bookings, SO, PO, packages from CSV)'
+    help = 'Load Yalla Thailand full demo data (all hardcoded, no CSV needed)'
 
     def add_arguments(self, parser):
         parser.add_argument('--dry-run', action='store_true', help='Preview without creating')
@@ -198,7 +202,7 @@ class Command(BaseCommand):
                 # 1. Infrastructure
                 thailand = self._create_country(user)
                 destinations = self._create_destinations(thailand, user)
-                hotels_by_dest = self._load_hotels(destinations, user)
+                hotels_by_dest = self._create_hotels(destinations, user)
                 sites_by_dest = self._create_tour_sites(destinations, user)
                 airlines = self._create_airlines(user)
                 transport_suppliers = self._create_transport_suppliers(user)
@@ -206,12 +210,11 @@ class Command(BaseCommand):
                 customers = self._create_customers(user)
                 insurance_providers = self._create_insurance_providers(user)
 
-                # 2. Package Types & Packages from CSV
+                # 2. Trip suppliers & Packages
+                trip_suppliers = self._create_trip_suppliers(user)
                 package_types = self._create_package_types(user)
-                csv_trips = self._read_trips_csv()
-                trip_suppliers = self._create_trip_suppliers(csv_trips, user)
-                packages = self._create_tour_packages_from_csv(
-                    user, branch, csv_trips, trip_suppliers, package_types
+                packages = self._create_tour_packages(
+                    user, branch, trip_suppliers, package_types
                 )
 
                 # 3. Bookings
@@ -271,7 +274,6 @@ class Command(BaseCommand):
     def _clear_demo_data(self):
         self.stdout.write('\nClearing yalla demo data...')
 
-        # Delete bookings tagged with yalla customers
         yalla_emails = [c['email'] for c in CUSTOMERS]
         yalla_partners = Partner.objects.filter(email__in=yalla_emails)
         bookings = TourBooking.objects.filter(partner__in=yalla_partners)
@@ -284,12 +286,12 @@ class Command(BaseCommand):
             bookings.delete()
         self.stdout.write(f'  Bookings deleted: {bc}')
 
-        # Delete packages created from CSV
-        pc = TourPackage.objects.filter(name__startswith='Yalla Thailand').count()
-        TourPackage.objects.filter(name__startswith='Yalla Thailand').delete()
-        # Also delete CSV-based trip packages
-        pc2 = TourPackage.objects.filter(category_01__isnull=False).exclude(category_01='').count()
+        # Delete packages with category_01 set (from trips data)
+        pc = TourPackage.objects.filter(category_01__isnull=False).exclude(category_01='').count()
         TourPackage.objects.filter(category_01__isnull=False).exclude(category_01='').delete()
+        # Also delete packages with empty category but created by demo
+        pc2 = TourPackage.objects.filter(name__startswith='Yalla Thailand').count()
+        TourPackage.objects.filter(name__startswith='Yalla Thailand').delete()
         self.stdout.write(f'  Packages deleted: {pc + pc2}')
 
         # Delete yalla hotels
@@ -298,27 +300,17 @@ class Command(BaseCommand):
             Partner.objects.filter(is_hotel=True, email__endswith='@yalla-thailand-hotels.com').delete()
         self.stdout.write(f'  Hotels deleted: {hc}')
 
-        # Delete yalla customers
         Partner.objects.filter(email__in=yalla_emails).delete()
 
-        # Delete thai airlines
         codes = [a['code'] for a in THAI_AIRLINES]
         Partner.objects.filter(is_airline=True, airline_code__in=codes).delete()
-
-        # Delete transport suppliers
         Partner.objects.filter(name__in=THAI_TRANSPORT_SUPPLIERS).delete()
-
-        # Delete trip suppliers
         Partner.objects.filter(email__endswith='@yalla-trip-suppliers.com').delete()
-
-        # Delete insurance providers
         Partner.objects.filter(email__endswith='@insurance-th.com').delete()
 
-        # Delete tour sites for thai destinations
-        thai_codes = [d['code'] for d in CSV_DESTINATION_MAP.values()]
+        thai_codes = [d['code'] for d in DESTINATIONS]
         TourSite.objects.filter(destination__code__in=thai_codes).delete()
 
-        # Delete package types
         PackageType.objects.filter(name='Thailand Tours').delete()
         PackageType.objects.filter(
             name__in=['Beach & Relaxation', 'Island Hopping', 'City & Culture',
@@ -339,7 +331,7 @@ class Command(BaseCommand):
     def _create_destinations(self, thailand, user):
         self.stdout.write('\nCreating Thai destinations...')
         destinations = {}
-        for dest_info in CSV_DESTINATION_MAP.values():
+        for dest_info in DESTINATIONS:
             dest, created = Destination.objects.get_or_create(
                 code=dest_info['code'],
                 defaults={'name': dest_info['name'], 'country': thailand,
@@ -349,42 +341,28 @@ class Command(BaseCommand):
             self.stdout.write(f'  {"+" if created else "="} {dest.name} ({dest.code})')
         return destinations
 
-    def _load_hotels(self, destinations, user):
-        self.stdout.write(f'\nLoading {HOTELS_PER_DEST} hotels per destination...')
-        demo_dir = Path(settings.BASE_DIR) / 'yalla_demo'
-        hotels_by_dest = {}
+    def _create_hotels(self, destinations, user):
+        self.stdout.write(f'\nCreating {HOTELS_PER_DEST} Phuket hotels...')
+        hotels_by_dest = {code: [] for code in ['BKK', 'KBV', 'PHI', 'HKT']}
 
-        for csv_file, dest_info in CSV_DESTINATION_MAP.items():
-            csv_path = demo_dir / csv_file
-            code = dest_info['code']
-            hotels_by_dest[code] = []
+        # Use hardcoded Phuket hotels for HKT destination
+        count = 0
+        for name in PHUKET_HOTELS:
+            if count >= HOTELS_PER_DEST:
+                break
+            slug = (name.lower().replace(' ', '-').replace("'", '')
+                    .replace('"', '').replace('&', 'and').replace(',', '')
+                    .replace('/', '-').replace('(', '').replace(')', '').replace('@', 'at'))
+            email = f'{slug[:200]}@yalla-thailand-hotels.com'
 
-            if not csv_path.exists():
-                self.stdout.write(self.style.WARNING(f'  Missing: {csv_file}'))
-                continue
+            hotel, _ = Partner.objects.get_or_create(
+                name=name, email=email,
+                defaults={'is_hotel': True, 'created_by': user}
+            )
+            hotels_by_dest['HKT'].append(hotel)
+            count += 1
 
-            count = 0
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if count >= HOTELS_PER_DEST:
-                        break
-                    name = line.strip().strip('"')
-                    if not name:
-                        continue
-
-                    slug = (name.lower().replace(' ', '-').replace("'", '')
-                            .replace('"', '').replace('&', 'and').replace(',', '')
-                            .replace('/', '-').replace('(', '').replace(')', '').replace('@', 'at'))
-                    email = f'{slug[:200]}@yalla-thailand-hotels.com'
-
-                    hotel, _ = Partner.objects.get_or_create(
-                        name=name, email=email,
-                        defaults={'is_hotel': True, 'created_by': user}
-                    )
-                    hotels_by_dest[code].append(hotel)
-                    count += 1
-
-            self.stdout.write(f'  {dest_info["name"]}: {count} hotels')
+        self.stdout.write(f'  Phuket: {count} hotels')
         return hotels_by_dest
 
     def _create_tour_sites(self, destinations, user):
@@ -471,8 +449,23 @@ class Command(BaseCommand):
         return providers
 
     # =========================================================================
-    # 2. Package Types & Packages from CSV
+    # 2. Trip Suppliers & Packages
     # =========================================================================
+
+    def _create_trip_suppliers(self, user):
+        self.stdout.write('\nCreating trip suppliers...')
+        suppliers = {}
+        for name in ALL_SUPPLIERS:
+            slug = name.lower().replace(' ', '.').replace("'", '').replace('(', '').replace(')', '')
+            email = f'{slug[:200]}@yalla-trip-suppliers.com'
+            partner, _ = Partner.objects.get_or_create(
+                name=name,
+                defaults={'email': email, 'created_by': user}
+            )
+            suppliers[name] = partner
+
+        self.stdout.write(f'  Trip suppliers: {len(suppliers)}')
+        return suppliers
 
     def _create_package_types(self, user):
         self.stdout.write('\nCreating package types...')
@@ -498,131 +491,65 @@ class Command(BaseCommand):
         self.stdout.write(f'  Package types: {len(types)}')
         return types
 
-    def _read_trips_csv(self):
-        """Read all trips from the Trips Sheet CSV file."""
-        self.stdout.write('\nReading trips CSV...')
-        demo_dir = Path(settings.BASE_DIR) / 'yalla_demo'
-        csv_path = demo_dir / 'Trips Sheet - Trips.csv'
-
-        if not csv_path.exists():
-            self.stdout.write(self.style.WARNING(f'  Missing: {csv_path}'))
-            return []
-
-        trips = []
-        with open(csv_path, 'r', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                trip = {
-                    'seq': row.get('S', '').strip(),
-                    'trip_name': row.get('Trip Name', '').strip(),
-                    'category_01': row.get('Category.01', '').strip(),
-                    'category_02': row.get('Category.02', '').strip(),
-                    'category_03': row.get('Category.03', '').strip(),
-                    'selling_price': _safe_decimal(row.get('Selling PRC', '')),
-                    'min_selling': _safe_decimal(row.get('Min Selling', '')),
-                    'net_price': _safe_decimal(row.get('Net PRC', '')),
-                    'supplier': row.get('Supplier', '').strip(),
-                    'duration': row.get('Duration', '').strip(),
-                    'short_description': row.get('Short Description', '').strip(),
-                    'kids_friendly': bool(row.get('Kids friendly', '').strip()),
-                    'action_adrenaline': bool(row.get('Action Adrenaline', '').strip()),
-                    'family_friendly': bool(row.get('Family Friendly', '').strip()),
-                    'romantic_honeymoon': bool(row.get('Romantic/\nHoneymoon', row.get('Romantic/Honeymoon', '')).strip()),
-                    'smoker_friendly': bool(row.get('Smoker Friendly', '').strip()),
-                    'whatsapp_catalog_link': row.get('WhatsApp Catalog Link', '').strip(),
-                    'video': row.get('Video', '').strip(),
-                    'album': row.get('Album', '').strip(),
-                }
-                if trip['trip_name']:
-                    trips.append(trip)
-
-        self.stdout.write(f'  Trips loaded from CSV: {len(trips)}')
-        return trips
-
-    def _create_trip_suppliers(self, csv_trips, user):
-        """Create Partner records for each unique supplier in the CSV."""
-        self.stdout.write('\nCreating trip suppliers from CSV...')
-        supplier_names = set()
-        for trip in csv_trips:
-            if trip['supplier']:
-                supplier_names.add(trip['supplier'])
-
-        suppliers = {}
-        for name in sorted(supplier_names):
-            slug = name.lower().replace(' ', '.').replace("'", '').replace('(', '').replace(')', '')
-            email = f'{slug[:200]}@yalla-trip-suppliers.com'
-            partner, _ = Partner.objects.get_or_create(
-                name=name,
-                defaults={'email': email, 'created_by': user}
-            )
-            suppliers[name] = partner
-
-        self.stdout.write(f'  Trip suppliers: {len(suppliers)}')
-        return suppliers
-
-    def _get_package_type_for_category(self, category_01, package_types):
-        """Map CSV category_01 to a PackageType."""
-        mapping = {
-            'Phi Phi': 'Island Hopping',
-            'James Bond': 'Island Hopping',
-            'Krabi': 'Adventure & Diving',
-            'Similan': 'Island Hopping',
-            'Adventures': 'Adventure & Diving',
-            'Night Shows': 'City & Culture',
-            'Raya & Coral': 'Beach & Relaxation',
-            'Private Boats': 'Luxury & Wellness',
-        }
-        pt_name = mapping.get(category_01, 'Thailand Tours')
-        return package_types.get(pt_name)
-
-    def _create_tour_packages_from_csv(self, user, branch, csv_trips, trip_suppliers, package_types):
-        """Create TourPackage records from CSV trip data, mapping all columns."""
-        self.stdout.write('\nCreating tour packages from CSV trips...')
+    def _create_tour_packages(self, user, branch, trip_suppliers, package_types):
+        """Create TourPackage records from hardcoded TRIPS_DATA."""
+        self.stdout.write('\nCreating tour packages from trips data...')
 
         packages = []
-        for trip in csv_trips:
-            supplier_partner = trip_suppliers.get(trip['supplier'])
-            pkg_type = self._get_package_type_for_category(trip['category_01'], package_types)
+        for trip_tuple in TRIPS_DATA:
+            (name, cat1, cat2, cat3, sell, min_sell, net,
+             supplier_name, duration, desc, wa, video, album) = trip_tuple
+
+            supplier_partner = trip_suppliers.get(supplier_name)
+            pt_name = CATEGORY_PACKAGE_TYPE_MAP.get(cat1, 'Thailand Tours')
+            pkg_type = package_types.get(pt_name)
 
             # Map duration text to days
-            duration_text = trip['duration'].lower()
-            if 'full day' in duration_text:
+            duration_lower = duration.lower()
+            if 'full day' in duration_lower:
                 duration_days = 1
-            elif 'half day' in duration_text:
+            elif 'half day' in duration_lower:
                 duration_days = 1
-            elif 'evening' in duration_text or 'afternoon' in duration_text:
+            elif 'evening' in duration_lower or 'afternoon' in duration_lower:
                 duration_days = 1
             else:
                 duration_days = 1
 
+            selling_price = _safe_decimal(sell)
+            min_selling_price = _safe_decimal(min_sell) or None
+            net_price = _safe_decimal(net) or None
+
+            # Look up supplier tags from Master sheet
+            tags = SUPPLIER_TAGS.get(supplier_name, (False, False, False, False, False))
+            kids_friendly, family_friendly, action_adrenaline, romantic_honeymoon, smoker_friendly = tags
+
             package = TourPackage.objects.create(
-                # Existing TourPackage fields
-                name=trip['trip_name'],
-                description=trip['short_description'],
+                name=name,
+                description=desc,
                 package_type=pkg_type,
                 is_active=True,
                 default_duration_days=duration_days,
-                base_price=trip['selling_price'],
+                base_price=selling_price,
                 package_seats=random.randint(20, 50),
                 remaining_seats=random.randint(5, 30),
                 branch=branch,
                 created_by=user,
                 # Yalla extension fields
-                category_01=trip['category_01'],
-                category_02=trip['category_02'],
-                category_03=trip['category_03'],
-                min_selling_price=trip['min_selling'] if trip['min_selling'] else None,
-                net_price=trip['net_price'] if trip['net_price'] else None,
+                category_01=cat1,
+                category_02=cat2,
+                category_03=cat3,
+                min_selling_price=min_selling_price,
+                net_price=net_price,
                 supplier=supplier_partner,
-                duration_type=trip['duration'],
-                kids_friendly=trip['kids_friendly'],
-                action_adrenaline=trip['action_adrenaline'],
-                family_friendly=trip['family_friendly'],
-                romantic_honeymoon=trip['romantic_honeymoon'],
-                smoker_friendly=trip['smoker_friendly'],
-                whatsapp_catalog_link=trip['whatsapp_catalog_link'],
-                video_link=trip['video'],
-                album=trip['album'],
+                duration_type=duration,
+                kids_friendly=kids_friendly,
+                action_adrenaline=action_adrenaline,
+                family_friendly=family_friendly,
+                romantic_honeymoon=romantic_honeymoon,
+                smoker_friendly=smoker_friendly,
+                whatsapp_catalog_link=wa,
+                video_link=video,
+                album=album,
             )
             packages.append(package)
 
@@ -644,23 +571,19 @@ class Command(BaseCommand):
         )
         random.shuffle(state_queue)
 
-        # Ensure DXB origin exists
         dxb = Destination.objects.filter(code='DXB').first()
 
         bookings = []
-        # Pick 20 random packages for bookings
         booking_packages = random.sample(packages, min(20, len(packages))) if len(packages) >= 20 else packages[:20]
 
         for i in range(min(20, len(booking_packages))):
             pkg = booking_packages[i]
             state = state_queue[i]
 
-            # Determine destination from category
             dest_code = CATEGORY_DEST_MAP.get(pkg.category_01, 'HKT')
             dest = destinations.get(dest_code)
             dest_name = f'{pkg.category_01}, Thailand' if pkg.category_01 else 'Phuket, Thailand'
 
-            # Duration from package
             duration = pkg.default_duration_days or 1
             adults = random.choice([2, 2, 2, 3, 4])
             children = random.choice([0, 0, 0, 1, 2])
@@ -718,6 +641,8 @@ class Command(BaseCommand):
 
             # Hotel
             dest_hotels = hotels_by_dest.get(dest_code, [])
+            if not dest_hotels:
+                dest_hotels = hotels_by_dest.get('HKT', [])
             hotel = random.choice(dest_hotels) if dest_hotels else None
             room = random.choice(room_types) if room_types else None
             if hotel and room and dest:
@@ -939,9 +864,8 @@ class Command(BaseCommand):
 
         self.stdout.write(f'\nPackages:')
         self.stdout.write(f'  Package types: {len(package_types)}')
-        self.stdout.write(f'  Tour packages (from CSV): {len(packages)}')
+        self.stdout.write(f'  Tour packages: {len(packages)}')
 
-        # Show category breakdown
         cat_counts = {}
         for p in packages:
             cat = p.category_01 or 'Other'
