@@ -31,6 +31,8 @@ class TourPackageYallaExtension(ModelExtension):
         ('phuket', 'Phuket'),
         ('raya_coral', 'Raya & Coral'),
         ('similan', 'Similan'),
+        ('bangkok', 'Bangkok'),
+        ('koh_samui', 'Koh Samui'),
     ]
 
     MOTION_SICKNESS_CHOICES = [
@@ -53,6 +55,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('3+', '3+'),
         ('8+', '8+'),
         ('12+', '12+'),
+        ('16+', '16+'),
         ('conditional', 'Conditional'),
     ]
 
@@ -97,6 +100,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('6', '6'),
         ('7', '7'),
         ('8', '8'),
+        ('9', '9'),
         ('9+', '9+'),
         ('custom', 'Custom'),
     ]
@@ -115,6 +119,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('afternoon', 'Afternoon'),
         ('evening', 'Evening'),
         ('flexible', 'Flexible'),
+        ('overnight', 'Overnight'),
     ]
 
     ACT_TYPE_CHOICES = [
@@ -124,6 +129,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('river_adventure', 'River Adventure'),
         ('land_adventure', 'Land Adventure'),
         ('evening_show', 'Evening Show'),
+        ('city_tour', 'City Tour'),
     ]
 
     QUALITY_CHOICES = [
@@ -133,6 +139,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('premium', 'Premium'),
         ('high_end', 'High End'),
         ('luxury', 'Luxury'),
+        ('private', 'Private'),
     ]
 
     SERVICE_ONBOARD_CHOICES = [
@@ -181,8 +188,12 @@ class TourPackageYallaExtension(ModelExtension):
     ]
 
     NATIONAL_PARK_CHOICES = [
+        ('extra_200', 'Extra 200'),
         ('extra_300', 'Extra 300'),
         ('extra_400', 'Extra 400'),
+        ('extra_500', 'Extra 500'),
+        ('extra_600', 'Extra 600'),
+        ('included', 'Included'),
     ]
 
     # --- Select fields matching final.csv columns ---
