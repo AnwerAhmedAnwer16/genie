@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Yalla Thailand - Tour Package View Patches
-Adds Yalla-specific fields (trip categories, pricing, supplier, tags, media)
+Adds Yalla-specific select fields (matching final.csv columns)
 to the TourPackage form, list, and search views.
 """
 from django.utils.translation import gettext as _
@@ -20,49 +20,11 @@ tourism_package_form_yalla_patch = {
     "inherit_id": "tourism_package_form",
     "module": "yalla_thailand",
     "inheritance_operations": [
-        # 1. Add categories + supplier + duration_type to main section (left group)
+        # 1. Trip Info fields (left group) - Destination, categories, timing
         {
             "operation": "append",
             "target": "sheet.sections.0.groups.0.fields",
             "content": [
-                {
-                    "name": "category_01",
-                    "widget": "text",
-                    "string": _("Category 1"),
-                },
-                {
-                    "name": "category_02",
-                    "widget": "text",
-                    "string": _("Category 2"),
-                },
-                {
-                    "name": "category_03",
-                    "widget": "text",
-                    "string": _("Category 3"),
-                },
-                {
-                    "name": "duration_type",
-                    "widget": "text",
-                    "string": _("Duration Type"),
-                    "help": _("e.g., Full Day, Half Day, Evening"),
-                },
-            ]
-        },
-        # 2. Add pricing + supplier to main section (right group)
-        {
-            "operation": "append",
-            "target": "sheet.sections.0.groups.1.fields",
-            "content": [
-                {
-                    "name": "min_selling_price",
-                    "widget": "number",
-                    "string": _("Min Selling Price"),
-                },
-                {
-                    "name": "net_price",
-                    "widget": "number",
-                    "string": _("Net Price"),
-                },
                 {
                     "name": "supplier",
                     "widget": "relation",
@@ -70,48 +32,187 @@ tourism_package_form_yalla_patch = {
                     "displayField": "name",
                     "multiSelect": False,
                 },
+                {
+                    "name": "destination",
+                    "widget": "select",
+                    "string": _("Destination"),
+                },
+                {
+                    "name": "act_type",
+                    "widget": "select",
+                    "string": _("Act. Type"),
+                },
+                {
+                    "name": "duration",
+                    "widget": "select",
+                    "string": _("Duration"),
+                },
+                {
+                    "name": "time",
+                    "widget": "select",
+                    "string": _("Time"),
+                },
+                {
+                    "name": "stop_act",
+                    "widget": "select",
+                    "string": _("Stop/Act."),
+                },
             ]
         },
-        # 3. Replace Attachments tab (index 4) with tags + media + attachments
+        # 2. Quality & Comfort fields (right group)
+        {
+            "operation": "append",
+            "target": "sheet.sections.0.groups.1.fields",
+            "content": [
+                {
+                    "name": "quality",
+                    "widget": "select",
+                    "string": _("Quality"),
+                },
+                {
+                    "name": "price_range",
+                    "widget": "select",
+                    "string": _("Price Range"),
+                },
+                {
+                    "name": "lunch",
+                    "widget": "select",
+                    "string": _("Lunch"),
+                },
+                {
+                    "name": "longtail_boat",
+                    "widget": "select",
+                    "string": _("Longtail Boat"),
+                },
+                {
+                    "name": "national_park",
+                    "widget": "select",
+                    "string": _("National Park"),
+                },
+                {
+                    "name": "no_of_pax",
+                    "widget": "select",
+                    "string": _("No. of PAX"),
+                },
+            ]
+        },
+        # 3. Replace Tags & Media tab with all select fields + media + attachments
         {
             "operation": "replace",
             "target": "sheet.tabs.4",
             "content": {
-                "title": _("Tags & Media"),
+                "title": _("Trip Details"),
                 "sections": [
                     {
-                        "title": _("Trip Tags"),
+                        "title": _("Safety & Comfort"),
                         "groups": [
                             {
                                 "fields": [
                                     {
-                                        "name": "kids_friendly",
-                                        "widget": "switch",
-                                        "string": _("Kids Friendly"),
+                                        "name": "motion_sickness",
+                                        "widget": "select",
+                                        "string": _("Motion Sickness"),
                                     },
                                     {
-                                        "name": "action_adrenaline",
-                                        "widget": "switch",
-                                        "string": _("Action / Adrenaline"),
+                                        "name": "weather_sensitivity",
+                                        "widget": "select",
+                                        "string": _("Weather Sensitivity"),
                                     },
                                     {
-                                        "name": "family_friendly",
-                                        "widget": "switch",
-                                        "string": _("Family Friendly"),
+                                        "name": "children_eligibility",
+                                        "widget": "select",
+                                        "string": _("Children Eligibility"),
+                                    },
+                                    {
+                                        "name": "stability",
+                                        "widget": "select",
+                                        "string": _("Stability"),
                                     },
                                 ],
                             },
                             {
                                 "fields": [
                                     {
+                                        "name": "action_adrenaline",
+                                        "widget": "select",
+                                        "string": _("Action Adrenaline"),
+                                    },
+                                    {
                                         "name": "romantic_honeymoon",
-                                        "widget": "switch",
+                                        "widget": "select",
                                         "string": _("Romantic / Honeymoon"),
                                     },
                                     {
                                         "name": "smoker_friendly",
-                                        "widget": "switch",
+                                        "widget": "select",
                                         "string": _("Smoker Friendly"),
+                                    },
+                                    {
+                                        "name": "mobility",
+                                        "widget": "select",
+                                        "string": _("Mobility"),
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "title": _("Boat & Water"),
+                        "groups": [
+                            {
+                                "fields": [
+                                    {
+                                        "name": "service_onboard",
+                                        "widget": "select",
+                                        "string": _("Service Onboard"),
+                                    },
+                                    {
+                                        "name": "boat_view",
+                                        "widget": "select",
+                                        "string": _("Boat View"),
+                                    },
+                                    {
+                                        "name": "water_act",
+                                        "widget": "select",
+                                        "string": _("Water Act."),
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                    {
+                        "title": _("Pricing"),
+                        "groups": [
+                            {
+                                "fields": [
+                                    {
+                                        "name": "sell_prc_adult",
+                                        "widget": "number",
+                                        "string": _("Sell PRC Ad."),
+                                    },
+                                    {
+                                        "name": "net_prc_adult",
+                                        "widget": "number",
+                                        "string": _("Net PRC Ad."),
+                                    },
+                                    {
+                                        "name": "min_markup",
+                                        "widget": "number",
+                                        "string": _("Min. Markup"),
+                                    },
+                                ],
+                            },
+                            {
+                                "fields": [
+                                    {
+                                        "name": "sell_prc_child",
+                                        "widget": "number",
+                                        "string": _("Sell PRC Ch."),
+                                    },
+                                    {
+                                        "name": "net_prc_child",
+                                        "widget": "number",
+                                        "string": _("Net PRC Ch."),
                                     },
                                 ],
                             },
@@ -136,6 +237,11 @@ tourism_package_form_yalla_patch = {
                                         "name": "album",
                                         "widget": "text",
                                         "string": _("Album"),
+                                    },
+                                    {
+                                        "name": "note",
+                                        "widget": "text",
+                                        "string": _("Note"),
                                     },
                                 ],
                             },
@@ -212,34 +318,58 @@ tourism_package_list_yalla_patch = {
             "target": "tree.fields",
             "content": [
                 {
-                    "name": "category_01",
-                    "widget": "text",
-                    "string": _("Category"),
-                    "width": 120,
+                    "name": "destination",
+                    "widget": "select",
+                    "string": _("Destination"),
+                    "width": 130,
                 },
                 {
                     "name": "supplier",
                     "widget": "relation",
                     "displayField": "name",
                     "string": _("Supplier"),
-                    "width": 150,
+                    "width": 140,
                 },
                 {
-                    "name": "min_selling_price",
-                    "widget": "number",
-                    "string": _("Min Selling"),
+                    "name": "act_type",
+                    "widget": "select",
+                    "string": _("Act. Type"),
                     "width": 110,
                 },
                 {
-                    "name": "net_price",
-                    "widget": "number",
-                    "string": _("Net Price"),
+                    "name": "duration",
+                    "widget": "select",
+                    "string": _("Duration"),
+                    "width": 100,
+                },
+                {
+                    "name": "time",
+                    "widget": "select",
+                    "string": _("Time"),
                     "width": 110,
                 },
                 {
-                    "name": "duration_type",
-                    "widget": "text",
-                    "string": _("Duration Type"),
+                    "name": "quality",
+                    "widget": "select",
+                    "string": _("Quality"),
+                    "width": 100,
+                },
+                {
+                    "name": "price_range",
+                    "widget": "select",
+                    "string": _("Price Range"),
+                    "width": 120,
+                },
+                {
+                    "name": "sell_prc_adult",
+                    "widget": "number",
+                    "string": _("Sell PRC Ad."),
+                    "width": 110,
+                },
+                {
+                    "name": "net_prc_adult",
+                    "widget": "number",
+                    "string": _("Net PRC Ad."),
                     "width": 110,
                 },
             ],
@@ -266,39 +396,30 @@ tourism_package_search_yalla_patch = {
             "target": "search.filters",
             "content": [
                 {
-                    "name": "kids_friendly",
-                    "string": _("Kids Friendly"),
+                    "name": "smoker_allowed",
+                    "string": _("Smoker Allowed"),
                     "filter": {
-                        "field": "kids_friendly",
+                        "field": "smoker_friendly",
                         "operator": "eq",
-                        "value": True,
+                        "value": "allowed",
                     },
                 },
                 {
-                    "name": "family_friendly",
-                    "string": _("Family Friendly"),
+                    "name": "kids_1plus",
+                    "string": _("Kids 1+"),
                     "filter": {
-                        "field": "family_friendly",
+                        "field": "children_eligibility",
                         "operator": "eq",
-                        "value": True,
+                        "value": "1+",
                     },
                 },
                 {
-                    "name": "romantic_honeymoon",
-                    "string": _("Romantic / Honeymoon"),
+                    "name": "kids_3plus",
+                    "string": _("Kids 3+"),
                     "filter": {
-                        "field": "romantic_honeymoon",
-                        "operator": "eq",
-                        "value": True,
-                    },
-                },
-                {
-                    "name": "action_adrenaline",
-                    "string": _("Action / Adrenaline"),
-                    "filter": {
-                        "field": "action_adrenaline",
-                        "operator": "eq",
-                        "value": True,
+                        "field": "children_eligibility",
+                        "operator": "in",
+                        "value": ["1+", "3+"],
                     },
                 },
             ],
@@ -308,16 +429,32 @@ tourism_package_search_yalla_patch = {
             "target": "search.group_by",
             "content": [
                 {
-                    "name": "category_01",
-                    "string": _("Category 1"),
+                    "name": "destination",
+                    "string": _("Destination"),
                 },
                 {
                     "name": "supplier",
                     "string": _("Supplier"),
                 },
                 {
-                    "name": "duration_type",
-                    "string": _("Duration Type"),
+                    "name": "act_type",
+                    "string": _("Act. Type"),
+                },
+                {
+                    "name": "duration",
+                    "string": _("Duration"),
+                },
+                {
+                    "name": "quality",
+                    "string": _("Quality"),
+                },
+                {
+                    "name": "price_range",
+                    "string": _("Price Range"),
+                },
+                {
+                    "name": "time",
+                    "string": _("Time"),
                 },
             ],
         },
