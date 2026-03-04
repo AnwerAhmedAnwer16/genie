@@ -263,7 +263,7 @@ class TourPackageYallaExtension(ModelExtension):
     stop_activity = models.CharField(
         _("Stop/Activity"),
         max_length=10,
-        choices=STOP_ACT_CHOICES,
+        choices=STOP_ACTIVITY_CHOICES,
         null=True,
         blank=True,
     )
@@ -284,7 +284,7 @@ class TourPackageYallaExtension(ModelExtension):
     activity_type = models.CharField(
         _("Activity Type"),
         max_length=20,
-        choices=ACT_TYPE_CHOICES,
+        choices=ACTIVITY_TYPE_CHOICES,
         null=True,
         blank=True,
     )
@@ -326,7 +326,7 @@ class TourPackageYallaExtension(ModelExtension):
     water_activity = models.CharField(
         _("Water Activity"),
         max_length=20,
-        choices=WATER_ACT_CHOICES,
+        choices=WATER_ACTIVITY_CHOICES,
         null=True,
         blank=True,
     )
