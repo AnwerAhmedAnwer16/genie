@@ -91,7 +91,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('extra', 'Extra'),
     ]
 
-    STOP_ACT_CHOICES = [
+    STOP_ACTIVITY_CHOICES = [
         ('1', '1'),
         ('2', '2'),
         ('3', '3'),
@@ -122,7 +122,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('overnight', 'Overnight'),
     ]
 
-    ACT_TYPE_CHOICES = [
+    ACTIVITY_TYPE_CHOICES = [
         ('sea_trip', 'Sea Trip'),
         ('sea_adventure', 'Sea Adventure'),
         ('water_activity', 'Water Activity'),
@@ -167,7 +167,7 @@ class TourPackageYallaExtension(ModelExtension):
         ('panoramic', 'Panoramic'),
     ]
 
-    WATER_ACT_CHOICES = [
+    WATER_ACTIVITY_CHOICES = [
         ('none', 'None'),
         ('basic', 'Basic'),
         ('extra', 'Extra'),
@@ -260,8 +260,8 @@ class TourPackageYallaExtension(ModelExtension):
         null=True,
         blank=True,
     )
-    stop_act = models.CharField(
-        _("Stop/Act."),
+    stop_activity = models.CharField(
+        _("Stop/Activity"),
         max_length=10,
         choices=STOP_ACT_CHOICES,
         null=True,
@@ -281,8 +281,8 @@ class TourPackageYallaExtension(ModelExtension):
         null=True,
         blank=True,
     )
-    act_type = models.CharField(
-        _("Act. Type"),
+    activity_type = models.CharField(
+        _("Activity Type"),
         max_length=20,
         choices=ACT_TYPE_CHOICES,
         null=True,
@@ -323,8 +323,8 @@ class TourPackageYallaExtension(ModelExtension):
         null=True,
         blank=True,
     )
-    water_act = models.CharField(
-        _("Water Act."),
+    water_activity = models.CharField(
+        _("Water Activity"),
         max_length=20,
         choices=WATER_ACT_CHOICES,
         null=True,
