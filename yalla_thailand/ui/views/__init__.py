@@ -13,6 +13,11 @@ from .account_move_patches import (
     journal_entry_form_view_yalla_patch,
     credit_note_form_view_yalla_patch,
     vendor_refund_form_view_yalla_patch,
+    invoice_form_client_paid_supplier_patch,
+)
+
+from .partner_form_patch import (
+    partner_form_yalla_settle_patch,
 )
 
 from .sales_order_patches import (
@@ -45,4 +50,10 @@ __all__ = [
     # Purchase order patches
     'purchase_order_form_view_yalla_patch',
     'purchase_ready_order_form_view_yalla_patch',
+
+    # Client paid supplier patch
+    'invoice_form_client_paid_supplier_patch',
+
+    # Partner settle patch
+    'partner_form_yalla_settle_patch',
 ]

@@ -9,8 +9,13 @@ Yalla Thailand Extensions - Extend existing models with custom fields.
 """
 from modules.base.model_inheritance import ModelExtension
 from modules.base.fields import AttachmentManyToManyField
-from django.db import models
+from modules.base.decorators import action
+from django.db import models, transaction
 from django.utils.translation import gettext as _
+from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TourPackageYallaExtension(ModelExtension):
@@ -477,7 +482,7 @@ class TourPackageYallaExtension(ModelExtension):
 
 class AccountMoveYallaExtension(ModelExtension):
     """
-    Extend Account Move with package_type FK.
+    Extend Account Move with package_type FK and client-paid-supplier action.
     """
     _inherit = 'account.move'
     _depends = ['account', 'tourism']
@@ -491,6 +496,266 @@ class AccountMoveYallaExtension(ModelExtension):
         verbose_name=_("Package Type"),
         help_text=_("Tourism package type associated with this move")
     )
+
+    related_bill = models.ForeignKey(
+        'account.Move',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='yalla_linked_invoices',
+        verbose_name=_("Related Supplier Bill"),
+        help_text=_("Vendor bill that the client paid directly to the supplier")
+    )
+
+    @action
+    def action_client_paid_supplier(self):
+        """
+        Client paid the supplier directly. Create a bridging journal entry
+        that closes both the customer invoice (receivable) and vendor bill (payable).
+        """
+        from modules.account.models import Move, MoveLine, AccountSettings
+        from modules.account.services.reconciliation import ReconciliationService
+
+        moves = self if hasattr(self, '__iter__') else [self]
+        for invoice in moves:
+            # --- Validations ---
+            if invoice.state != 'posted':
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('Invoice must be posted first.'), 'data': {}
+                }
+            if not invoice.related_bill:
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('Please set a Related Supplier Bill first.'), 'data': {}
+                }
+            bill = invoice.related_bill
+            if bill.state != 'posted':
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('The related supplier bill must be posted.'), 'data': {}
+                }
+            if invoice.payment_state == 'paid':
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('This invoice is already paid.'), 'data': {}
+                }
+
+            amount = invoice.amount_total
+
+            # --- Get accounts ---
+            try:
+                settings = AccountSettings.objects.filter(
+                    company=invoice.company
+                ).first()
+            except Exception:
+                settings = None
+
+            # Receivable account: from invoice's receivable line or default
+            inv_receivable_line = invoice.line_ids.filter(
+                account__account_type='asset_receivable'
+            ).first()
+            if inv_receivable_line:
+                receivable_account = inv_receivable_line.account
+            elif settings and settings.default_receivable_account:
+                receivable_account = settings.default_receivable_account
+            else:
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('No receivable account found.'), 'data': {}
+                }
+
+            # Payable account: from bill's payable line or default
+            bill_payable_line = bill.line_ids.filter(
+                account__account_type='liability_payable'
+            ).first()
+            if bill_payable_line:
+                payable_account = bill_payable_line.account
+            elif settings and settings.default_payable_account:
+                payable_account = settings.default_payable_account
+            else:
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('No payable account found.'), 'data': {}
+                }
+
+            # Misc journal
+            misc_journal = None
+            if settings and settings.default_misc_journal:
+                misc_journal = settings.default_misc_journal
+            if not misc_journal:
+                from modules.account.models import Journal
+                misc_journal = Journal.objects.filter(
+                    type='general'
+                ).first()
+            if not misc_journal:
+                return {
+                    'status': False, 'open_mode': 'message',
+                    'message': _('No miscellaneous journal configured.'), 'data': {}
+                }
+
+            # --- Create bridging journal entry ---
+            with transaction.atomic():
+                from modules.base.models import Branch
+                branch = getattr(invoice, 'branch', None)
+                if not branch:
+                    branch = Branch.objects.first()
+
+                from django.utils import timezone
+                je = Move.objects.create(
+                    name='',
+                    date=timezone.now().date(),
+                    journal=misc_journal,
+                    move_type='entry',
+                    currency=invoice.currency,
+                    branch=branch,
+                    ref=_('Client Paid Supplier: %(inv)s ↔ %(bill)s') % {
+                        'inv': invoice.name, 'bill': bill.name
+                    },
+                )
+
+                # DR Payable (partner = supplier from bill)
+                je_debit_line = MoveLine.objects.create(
+                    move=je,
+                    name=_('Client paid supplier – %(bill)s') % {'bill': bill.name},
+                    account=payable_account,
+                    partner=bill.partner,
+                    debit=amount,
+                    credit=Decimal('0.00'),
+                    date=je.date,
+                    currency=invoice.currency,
+                )
+
+                # CR Receivable (partner = client from invoice)
+                je_credit_line = MoveLine.objects.create(
+                    move=je,
+                    name=_('Client paid supplier – %(inv)s') % {'inv': invoice.name},
+                    account=receivable_account,
+                    partner=invoice.partner,
+                    debit=Decimal('0.00'),
+                    credit=amount,
+                    date=je.date,
+                    currency=invoice.currency,
+                )
+
+                # Post the JE
+                if not je.name:
+                    je.name = je._generate_name()
+                je.state = 'posted'
+                je.posted_before = True
+                je.save()
+
+                # --- Reconcile receivable: JE credit ↔ invoice's receivable debit ---
+                if inv_receivable_line:
+                    ReconciliationService.reconcile([inv_receivable_line, je_credit_line])
+
+                # --- Reconcile payable: JE debit ↔ bill's payable credit ---
+                if bill_payable_line:
+                    ReconciliationService.reconcile([bill_payable_line, je_debit_line])
+
+                # --- Update residual & payment_state on invoice ---
+                inv_new_residual = max(invoice.amount_residual - amount, Decimal('0.00'))
+                inv_ps = 'paid' if inv_new_residual <= 0 else 'partial'
+                Move.objects.filter(pk=invoice.pk).update(
+                    amount_residual=inv_new_residual,
+                    payment_state=inv_ps,
+                )
+
+                # --- Update residual & payment_state on bill ---
+                bill_new_residual = max(bill.amount_residual - amount, Decimal('0.00'))
+                bill_ps = 'paid' if bill_new_residual <= 0 else 'partial'
+                Move.objects.filter(pk=bill.pk).update(
+                    amount_residual=bill_new_residual,
+                    payment_state=bill_ps,
+                )
+
+            return {
+                'status': True,
+                'open_mode': 'message',
+                'message': _(
+                    'Done! Journal entry %(je)s created. '
+                    'Invoice → %(inv_state)s, Bill → %(bill_state)s.'
+                ) % {
+                    'je': je.name,
+                    'inv_state': inv_ps,
+                    'bill_state': bill_ps,
+                },
+                'on_success': {'type': 'refresh'}
+
+            }
+
+
+class PartnerYallaExtension(ModelExtension):
+    """
+    Extend Partner with supplier settlement action.
+    """
+    _inherit = 'base.partner'
+    _depends = ['base', 'account']
+
+    @action
+    def action_supplier_settlement(self):
+        """
+        Check unreconciled payable balance for this supplier
+        and open a pre-filled payment form to settle the net difference.
+        """
+        from modules.account.models import MoveLine
+
+        partners = self if hasattr(self, '__iter__') else [self]
+        for partner in partners:
+            # Query all unreconciled lines on payable accounts for this partner
+            payable_lines = MoveLine.objects.filter(
+                partner=partner,
+                account__account_type='liability_payable',
+                move__state='posted',
+                reconciled=False,
+            )
+
+            total_debit = payable_lines.aggregate(
+                total=models.Sum('debit')
+            )['total'] or Decimal('0.00')
+            total_credit = payable_lines.aggregate(
+                total=models.Sum('credit')
+            )['total'] or Decimal('0.00')
+
+            net = total_debit - total_credit
+
+            if abs(net) < Decimal('0.01'):
+                return {
+                    'status': True, 'open_mode': 'message',
+                    'message': _('Account is already settled for %(name)s.') % {
+                        'name': partner.name
+                    },
+                    'data': {}
+                }
+
+            if net > 0:
+                # Supplier owes us → inbound payment
+                payment_type = 'inbound'
+                menu_key = 'account_customer_payments'
+                abs_amount = float(net)
+            else:
+                # We owe supplier → outbound payment
+                payment_type = 'outbound'
+                menu_key = 'account_vendor_payments'
+                abs_amount = float(abs(net))
+
+            return {
+                'status': True,
+                'open_mode': 'slideover',
+                'data': {
+                    'menu_item_key': menu_key,
+                    'view_type': 'form',
+                    'context': {
+                        'default_fields': {
+                            'partner': partner,
+                            'amount': abs_amount,
+                            'payment_type': payment_type,
+                        }
+                    },
+                    'type': 'action',
+                    'title': _('Settle Account – %(name)s') % {'name': partner.name}
+                }
+            }
 
 
 class SalesOrderYallaExtension(ModelExtension):

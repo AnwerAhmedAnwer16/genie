@@ -104,7 +104,66 @@ credit_note_form_view_yalla_patch = {
 
 
 # =============================================================================
-# 5. VENDOR REFUND FORM VIEW PATCH
+# 5. CLIENT PAID SUPPLIER - INVOICE FORM PATCH
+# =============================================================================
+invoice_form_client_paid_supplier_patch = {
+    "key": "invoice_form_client_paid_supplier_patch",
+    "name": "Invoice Form - Client Paid Supplier Patch",
+    "model": "account.move",
+    "view_type": "form",
+    "priority": 25,
+    "inherit_mode": "extension",
+    "inherit_id": "invoice_form_view",
+    "module": "account",
+    "inheritance_operations": [
+        {
+            "operation": "append",
+            "target": "header.actions",
+            "content": 
+                {
+                    "name": "action_client_paid_supplier",
+                    "type": "server",
+                    "string": _("Client Paid Supplier"),
+                    "icon": "HandCoins",
+                    "as": "button",
+                    "invisible": {
+                        "or": [
+                            {"field": "state", "operator": "ne", "value": "posted"},
+                            {"field": "payment_state", "operator": "eq", "value": "paid"},
+                        ]
+                    }
+                }
+            
+        },
+        {
+            "operation": "append",
+            "target": "sheet.sections.0.groups.0.fields",
+            "content": [
+                {
+                    "name": "related_bill",
+                    "string": _("Related Supplier Bill"),
+                    "widget": "relation",
+                    "displayField": "name",
+                    "multiSelect": False,
+                    "domain": {
+                        "filters": {
+                            "operator": "and",
+                            "filters": [
+                                {"field": "move_type", "operator": "eq", "value": "in_invoice"},
+                                {"field": "state", "operator": "eq", "value": "posted"},
+                                {"field": "payment_state", "operator": "ne", "value": "paid"},
+                            ]
+                        }
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+
+# =============================================================================
+# 6. VENDOR REFUND FORM VIEW PATCH
 # =============================================================================
 vendor_refund_form_view_yalla_patch = {
     "key": "vendor_refund_form_view_yalla_patch",
