@@ -201,132 +201,154 @@ class TourPackageYallaExtension(ModelExtension):
         _("Destination"),
         max_length=50,
         choices=DESTINATION_CHOICES,
+        null=True,
         blank=True,
     )
     motion_sickness = models.CharField(
         _("Motion Sickness"),
         max_length=20,
         choices=MOTION_SICKNESS_CHOICES,
+        null=True,
         blank=True,
     )
     weather_sensitivity = models.CharField(
         _("Weather Sensitivity"),
         max_length=20,
         choices=WEATHER_SENSITIVITY_CHOICES,
+        null=True,
         blank=True,
     )
     children_eligibility = models.CharField(
         _("Children Eligibility"),
         max_length=20,
         choices=CHILDREN_ELIGIBILITY_CHOICES,
+        null=True,
         blank=True,
     )
     action_adrenaline = models.CharField(
         _("Action Adrenaline"),
         max_length=20,
         choices=ACTION_ADRENALINE_CHOICES,
+        null=True,
         blank=True,
     )
     romantic_honeymoon = models.CharField(
         _("Romantic / Honeymoon"),
         max_length=20,
         choices=ROMANTIC_HONEYMOON_CHOICES,
+        null=True,
         blank=True,
     )
     smoker_friendly = models.CharField(
         _("Smoker Friendly"),
         max_length=20,
         choices=SMOKER_FRIENDLY_CHOICES,
+        null=True,
         blank=True,
     )
     price_range = models.CharField(
         _("Price Range"),
         max_length=20,
         choices=PRICE_RANGE_CHOICES,
+        null=True,
         blank=True,
     )
     lunch = models.CharField(
         _("Lunch"),
         max_length=20,
         choices=LUNCH_CHOICES,
+        null=True,
         blank=True,
     )
     stop_act = models.CharField(
         _("Stop/Act."),
         max_length=10,
         choices=STOP_ACT_CHOICES,
+        null=True,
         blank=True,
     )
     duration = models.CharField(
         _("Duration"),
         max_length=20,
         choices=DURATION_CHOICES,
+        null=True,
         blank=True,
     )
     time = models.CharField(
         _("Time"),
         max_length=20,
         choices=TIME_CHOICES,
+        null=True,
         blank=True,
     )
     act_type = models.CharField(
         _("Act. Type"),
         max_length=20,
         choices=ACT_TYPE_CHOICES,
+        null=True,
         blank=True,
     )
     quality = models.CharField(
         _("Quality"),
         max_length=20,
         choices=QUALITY_CHOICES,
+        null=True,
         blank=True,
     )
     service_onboard = models.CharField(
         _("Service Onboard"),
         max_length=20,
         choices=SERVICE_ONBOARD_CHOICES,
+        null=True,
         blank=True,
     )
     stability = models.CharField(
         _("Stability"),
         max_length=20,
         choices=STABILITY_CHOICES,
+        null=True,
         blank=True,
     )
     mobility = models.CharField(
         _("Mobility"),
         max_length=20,
         choices=MOBILITY_CHOICES,
+        null=True,
         blank=True,
     )
     boat_view = models.CharField(
         _("Boat View"),
         max_length=20,
         choices=BOAT_VIEW_CHOICES,
+        null=True,
         blank=True,
     )
     water_act = models.CharField(
         _("Water Act."),
         max_length=20,
         choices=WATER_ACT_CHOICES,
+        null=True,
         blank=True,
     )
     no_of_pax = models.CharField(
         _("No. of PAX"),
         max_length=10,
         choices=NO_OF_PAX_CHOICES,
+        null=True,
         blank=True,
     )
     longtail_boat = models.CharField(
         _("Longtail Boat"),
         max_length=20,
         choices=LONGTAIL_BOAT_CHOICES,
+        null=True,
         blank=True,
     )
     national_park = models.CharField(
         _("National Park"),
         max_length=20,
         choices=NATIONAL_PARK_CHOICES,
+        null=True,
         blank=True,
     )
 
@@ -381,20 +403,24 @@ class TourPackageYallaExtension(ModelExtension):
     whatsapp_catalog_link = models.URLField(
         _("WhatsApp Catalog Link"),
         max_length=500,
+        null=True,
         blank=True,
     )
     video_link = models.URLField(
         _("Video Link"),
         max_length=500,
+        null=True,
         blank=True,
     )
     album = models.CharField(
         _("Album"),
         max_length=255,
+        null=True,
         blank=True,
     )
     note = models.TextField(
         _("Note"),
+        null=True,
         blank=True,
     )
 
